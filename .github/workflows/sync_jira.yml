@@ -1,1 +1,29 @@
+name: Sync Jira Data
+on:
+  schedule:
+    - cron: '0 * * * *' # รันอัตโนมัติทุก 1 ชั่วโมง
+  workflow_dispatch:    # ปุ่มสำหรับกดรันเอง (Manual)
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Fetch Jira Data
+        run: |
+          # ใช้ Email และ Token จาก Secrets ที่ตั้งไว้
+          AUTH=$(echo -n "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_TOKEN }}" | base64)
+          
+          curl -X GET "https://appworks.atlassian.net/rest/api/3/search?jql=project%20%3D%20%22SGLS%22%20AND%20(type%20%3D%20%22Bug%22%20OR%20type%20%3D%20%22Defect%22)&maxResults=1000" \
+            -H "Authorization: Basic $AUTH" \
+            -H "Accept: application/json" > data.json
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git commit -m "Auto-update Jira data" || exit 0
+          git push
